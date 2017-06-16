@@ -15,6 +15,7 @@ import EventKit
 import CoreBluetooth
 import CoreMotion
 import Contacts
+import UserNotifications
 
 public typealias statusRequestClosure = (_ status: PermissionStatus) -> Void
 public typealias authClosureType      = (_ finished: Bool, _ results: [PermissionResult]) -> Void
@@ -89,6 +90,8 @@ typealias resultsForConfigClosure     = ([PermissionResult]) -> Void
     var configuredPermissions: [Permission] = []
     var permissionButtons: [UIButton]       = []
     var permissionLabels: [UILabel]         = []
+	
+	public var notificationAuthorizationRequestComplete: ((_ granted: Bool, _ error: Error?) -> Void)?
 	
 	// Useful for direct use of the request* methods
     
@@ -639,11 +642,17 @@ typealias resultsForConfigClosure     = ([PermissionResult]) -> Void
             NotificationCenter.default.addObserver(self, selector: #selector(showingNotificationPermission), name: NSNotification.Name.UIApplicationWillResignActive, object: nil)
             
             notificationTimer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(finishedShowingNotificationPermission), userInfo: nil, repeats: false)
-            
-            UIApplication.shared.registerUserNotificationSettings(
-                UIUserNotificationSettings(types: [.alert, .sound, .badge],
-                categories: notificationsPermissionSet)
-            )
+			
+			if #available(iOS 10.0, *) {
+				UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
+					self.notificationAuthorizationRequestComplete?(granted, error)
+				}
+			} else {
+				UIApplication.shared.registerUserNotificationSettings(
+					UIUserNotificationSettings(types: [.alert, .sound, .badge],
+					                           categories: notificationsPermissionSet)
+				)
+			}
         case .unauthorized:
             showDeniedAlert(.notifications)
         case .disabled:
